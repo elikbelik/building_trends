@@ -1,0 +1,6 @@
+.DS_Store
+experiments*/
+__pycache__/
+permits/
+*.xlsx
+
