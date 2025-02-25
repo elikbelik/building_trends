@@ -3,4 +3,6 @@ experiments*/
 __pycache__/
 permits/
 *.xlsx
+all_docs.csv
+pivoted_data_orig.csv
 
