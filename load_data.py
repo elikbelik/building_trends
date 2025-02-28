@@ -27,6 +27,7 @@ DATA_CSV = '/Users/elad/workspace/playground/stuff/horn_kedar/pivoted_data.csv'
 MINOR_MAJOR_CSV = '/Users/elad/workspace/playground/stuff/horn_kedar/cleaned74-97_validated_updated_fixed.csv'
 MINOR_MAJOR_PART2_CSV = '/Users/elad/workspace/playground/stuff/horn_kedar/machine learning 4-1 validation_EH.csv'
 MINOR_MAJOR_PART3_CSV = '/Users/elad/workspace/playground/stuff/horn_kedar/ml_new_entress.csv'
+MINOR_MAJOR_PART4_70S_CSV = '/Users/elad/workspace/playground/stuff/horn_kedar/69-79 validation.csv'
 
 
 def stable_hash(value):
@@ -63,7 +64,7 @@ def load_unlabeled_data() -> pd.DataFrame:
     return data
 
 
-def load_data(add_part3: bool = False) -> pd.DataFrame:
+def load_data(add_part3: bool = False, add_part4_70s: bool = False) -> pd.DataFrame:
     data = load_unlabeled_data()
     # Combine with minor major data
     minor_major = pd.read_csv(MINOR_MAJOR_CSV)
@@ -76,6 +77,15 @@ def load_data(add_part3: bool = False) -> pd.DataFrame:
         minor_major_part3.loc[minor_major_part3.YEAR.isna(), 'label'] = None
         minor_major = pd.concat([minor_major, minor_major_part3])
         minor_major.drop_duplicates('tik_id', keep='first', inplace=True)
+    if add_part4_70s:
+        minor_major_part4_70s = pd.read_csv(MINOR_MAJOR_PART4_70S_CSV)
+        minor_major_part4_70s.drop_duplicates('tik_id', keep='first', inplace=True)
+        minor_major_part4_70s.YEAR = pd.to_numeric(minor_major_part4_70s.YEAR, errors='coerce')
+        minor_major_part4_70s['label'] = minor_major_part4_70s.YEAR
+        minor_major_part4_70s.loc[minor_major_part4_70s.YEAR.isna(), 'label'] = None
+        minor_major = pd.concat([minor_major, minor_major_part4_70s])
+        minor_major.drop_duplicates('tik_id', keep='last', inplace=True)
+
     minor_major_part2 = pd.read_csv(MINOR_MAJOR_PART2_CSV)
     minor_major_part2['YEAR'] = minor_major_part2.estimated_year
     minor_major_part2['other_year'] = minor_major_part2['other year?']
@@ -85,8 +95,10 @@ def load_data(add_part3: bool = False) -> pd.DataFrame:
     known_years = minor_major_part2_filtered[minor_major_part2_filtered.other_year.notna()].tik_id
     if add_part3:
         known_years = pd.concat([known_years, minor_major_part3.tik_id])
+    if add_part4_70s:
+        known_years = pd.concat([known_years, minor_major_part4_70s.tik_id])
+        
     labeled_data.loc[labeled_data.tik_id.isin(known_years), 'know_all_years'] = True
-
     return labeled_data
 
 
