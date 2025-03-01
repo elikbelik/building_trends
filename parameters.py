@@ -106,6 +106,8 @@ class HyperParams:
     hidden_size: int = 5  # The number of hidden units in the RNN
     num_rnn_layers: int = 1  # The number of RNN layers
     rnn_use_tanh_instead_of_relu: bool = False  # Whether to use tanh instead of relu in the RNN
+    # LSTM info
+    num_lstm_layers: int = 1  # The number of LSTM layers
     # Transformer info
     nhead: int = 1  # The number of attention heads in the Transformer
     num_transformer_layers: int = 1  # The number of Transformer layers

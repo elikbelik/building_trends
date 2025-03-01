@@ -2,6 +2,7 @@ import math
 from typing import Optional
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from parameters import NUM_FIELDS, HyperParams, PosWeightSchedule
 
@@ -104,7 +105,7 @@ class BinaryClassificationRNN(nn.Module):
         nonlinearity = 'tanh' if use_tanh_instead_of_relu else 'relu'
         self.rnn = nn.RNN(input_size, hidden_size, num_layers=num_rnn_layers, batch_first=True,
                           bidirectional=bidirectional, nonlinearity=nonlinearity, dropout=rnn_dropout)
-        self.fc = nn.Linear(hidden_size * (int(bidirectional) + 1), 1)
+        self.fc = nn.Linear(hidden_size * (1 + bidirectional), 1)
         self.final = nn.Sigmoid()
     
     def forward(self, x):
@@ -171,6 +172,34 @@ class TimeSeriesTransformer(nn.Module):
         return cls(other.input_dim, other.d_model, other.nhead, other.num_layers, other.dim_feedforward, other.dropout)
     
 
+class BiLSTM(nn.Module):
+    def __init__(self, input_size: int, hidden_size: int, num_layers: int, bidirectional: bool, dropout: float):
+        super(BiLSTM, self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.bidirectional = bidirectional
+        self.dropout = dropout
+        self.lstm = nn.LSTM(input_size=input_size,
+                            hidden_size=hidden_size,
+                            num_layers=num_layers,
+                            bidirectional=bidirectional,
+                            batch_first=True,
+                            dropout=dropout)
+        self.fc = nn.Linear(hidden_size * (1 + bidirectional), 1)
+        self.final = nn.Sigmoid()
+
+    def forward(self, x):
+        lstm_out, _ = self.lstm(x)  # lstm_out shape: (batch_size, seq_len, hidden_size * (1 + bidirectional))
+        out = self.fc(lstm_out)  # out shape: (batch_size, seq_len, 1)
+        out = self.final(out)
+        return out
+    
+    @classmethod
+    def like(cls, other: 'BiLSTM'):
+        return cls(other.input_size, other.hidden_size, other.num_layers, other.bidirectional, other.dropout)
+    
+
 def get_model(hyperparams: HyperParams):
     if hyperparams.model_type == 'rnn':
         return BinaryClassificationRNN(
@@ -190,6 +219,14 @@ def get_model(hyperparams: HyperParams):
             dim_feedforward=hyperparams.dim_feedforward,
             dropout=hyperparams.dropout
         )
+    elif hyperparams.model_type == 'lstm':
+        return BiLSTM(
+            input_size=hyperparams.input_size,
+            hidden_size=hyperparams.hidden_size,
+            num_layers=hyperparams.num_lstm_layers,
+            bidirectional=hyperparams.bidirectional,
+            dropout=hyperparams.dropout
+        )
     else:
         raise ValueError(f'Unknown model type: {hyperparams.model_type}')
 
@@ -199,5 +236,7 @@ def get_model_like(model: nn.Module):
         return BinaryClassificationRNN.like(model)
     elif isinstance(model, TimeSeriesTransformer):
         return TimeSeriesTransformer.like(model)
+    elif isinstance(model, BiLSTM):
+        return BiLSTM.like(model)
     else:
         raise ValueError(f'Unknown model type: {type(model)}')
